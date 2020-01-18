@@ -17,6 +17,13 @@ import (
 	"local.io/me/trace"
 )
 
+// 現在アクティブなAvatarの実装
+var avatars Avatar = TryAvatars{
+	UseFileSystemAvatar,
+	UseAuthAvatar,
+	UseGravatar,
+}
+
 func main() {
 	addr := flag.String("addr", ":8080", "アプリケーションのアドレス")
 	flag.Parse() // フラグを解釈する
@@ -30,7 +37,7 @@ func main() {
 	)
 
 	// チャットルームの作成
-	r := newRoom(UseFileSystemAvatar)
+	r := newRoom()
 	r.tracer = trace.New(os.Stdout)
 
 	// パスとHTTPハンドラーの関連付け(HandleFuncとは別)
@@ -42,12 +49,14 @@ func main() {
 	http.HandleFunc("/auth/", loginHandler)
 	http.Handle("/room", r)
 	http.HandleFunc("/logout", func(w http.ResponseWriter, r *http.Request) {
+		// ログアウト(cookieの削除)
 		http.SetCookie(w, &http.Cookie{
 			Name:   "auth",
 			Value:  "",
 			Path:   "/",
 			MaxAge: -1,
 		})
+		// トップページにリダイレクト
 		w.Header()["Location"] = []string{"/chat"}
 		w.WriteHeader(http.StatusTemporaryRedirect)
 	})
